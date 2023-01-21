@@ -124,6 +124,9 @@ for _, id, episode, _ in episodes:
 	clear()
 	print(f"Downloading episode {episode}...")
 
+	print(sources)
+	input()
+
 	def try_download():
 		try:
 			try:
@@ -131,61 +134,84 @@ for _, id, episode, _ in episodes:
 
 				m3u8_To_MP4.multithread_download(source, mp4_file_dir=fp, mp4_file_name=fn)
 			except Exception as e:
-				source = sources["Mp4upload-embed"].replace("embed-", "")
-				mp4_id = re.search(r"mp4upload\.com\/(\S+)\.html", source)[1]
+				try:
+					source = sources["Mp4upload-embed"].replace("embed-", "")
+					mp4_id = re.search(r"mp4upload\.com\/(\S+)\.html", source)[1]
 
-				headers = {
-					"authority": "www.mp4upload.com",
-					"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-					"accept-language": "en-US,en;q=0.9",
-					"cache-control": "max-age=0",
-					"dnt": "1",
-					"origin": "https://www.mp4upload.com",
-					"referer": source,
-					"sec-ch-ua": '"Chromium";v="109", "Not_A Brand";v="99"',
-					"sec-ch-ua-mobile": "?0",
-					"sec-ch-ua-platform": '"Windows"',
-					"sec-fetch-dest": "document",
-					"sec-fetch-mode": "navigate",
-					"sec-fetch-site": "same-origin",
-					"sec-fetch-user": "?1",
-					"upgrade-insecure-requests": "1",
-					"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
-				}
+					headers = {
+						"authority": "www.mp4upload.com",
+						"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+						"accept-language": "en-US,en;q=0.9",
+						"cache-control": "max-age=0",
+						"dnt": "1",
+						"origin": "https://www.mp4upload.com",
+						"referer": source,
+						"sec-ch-ua": '"Chromium";v="109", "Not_A Brand";v="99"',
+						"sec-ch-ua-mobile": "?0",
+						"sec-ch-ua-platform": '"Windows"',
+						"sec-fetch-dest": "document",
+						"sec-fetch-mode": "navigate",
+						"sec-fetch-site": "same-origin",
+						"sec-fetch-user": "?1",
+						"upgrade-insecure-requests": "1",
+						"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+					}
 
-				data = {
-					"op": "download2",
-					"id": mp4_id,
-					"rand": "",
-					"referer": source,
-					"method_free": " ",
-					"method_premium": ""
-				}
-				
-				with requests.post(source, verify=False, data=data, headers=headers, stream=True) as r:
-					clear()
-					print("Direct server download failed, trying alternate server...")
-
-					r.raise_for_status()
-
-					chunk_size = 32768
-					total_size = int(r.headers["content-length"])
-					downloaded_size = 0
+					data = {
+						"op": "download2",
+						"id": mp4_id,
+						"rand": "",
+						"referer": source,
+						"method_free": " ",
+						"method_premium": ""
+					}
 					
-					with alive_bar(total_size, title=f"Downloading episode {episode}", ctrl_c=0, unit="B", scale="SI", precision=1) as progress:
-						with open(path.join(fp, fn), "wb") as f:
-							for chunk in r.iter_content(chunk_size=chunk_size):
-								f.write(chunk)
+					with requests.post(source, verify=False, data=data, headers=headers, stream=True) as r:
+						clear()
+						print("Direct server download failed, trying alternate server...")
 
-								downloaded_size += chunk_size
-								progress(chunk_size)
+						r.raise_for_status()
+
+						chunk_size = 32768
+						total_size = int(r.headers["content-length"])
+						downloaded_size = 0
+						
+						with alive_bar(total_size, title=f"Downloading episode {episode}", ctrl_c=0, unit="B", scale="SI", precision=1) as progress:
+							with open(path.join(fp, fn), "wb") as f:
+								for chunk in r.iter_content(chunk_size=chunk_size):
+									f.write(chunk)
+
+									downloaded_size += chunk_size
+									progress(chunk_size)
+				except Exception as e:
+					clear()
+
+					source = "https:" + sources["VidCDN-embed"]
+					download_source = sources["Streamsb-embed"].replace("/e/", "/d/")
+
+					r = requests.get(source)
+
+					with open(path.join(fp, fn.replace(".mp4", ".html")), "wb") as f:
+						f.write(r.content)
+					with open(path.join(fp, fn.replace(".mp4", ".download.txt")), "w") as f:
+						f.write(download_source)
+
+					print(f"WARNING | BOTH STREAM SOURCES FAILED | YOU CAN MANUALLY DOWNLOAD EPISODE {episode} WITH THE LINK BELOW")
+					print(download_source)
+					print(f"Alternatively, you can stream the episode with the 'Episode {episode}.html' file created, or view the download link in 'Episode {episode}.download.txt'.")
+					print()
+					print("Press enter to continue.")
+
+					input()
 		except Exception as e:
 			print(e)
 			print()
-			print("THERE WAS AN ERROR | PRESS ENTER TO RETRY")
+			print("THERE WAS AN ERROR WITH THIS EPISODE | PRESS ENTER TO SKIP EPISODE OR TYPE 'R' AND PRESS ENTER TO RETRY")
 
-			input()
-			try_download()
+			r = input().lower()
+
+			if r == "r":
+				try_download()
 	try_download()
 	
 print(f"Done! Successfully downloaded {len(episodes)} episode{'s' if len(episodes) > 1 else ''}!")
