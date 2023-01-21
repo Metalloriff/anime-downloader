@@ -124,9 +124,6 @@ for _, id, episode, _ in episodes:
 	clear()
 	print(f"Downloading episode {episode}...")
 
-	print(sources)
-	input()
-
 	def try_download():
 		try:
 			try:
