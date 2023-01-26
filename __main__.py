@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -6,8 +7,10 @@ import sys
 from os import path, system
 
 import m3u8_To_MP4
+import pyppeteer
 import requests
 from alive_progress import alive_bar
+from pyppeteer_stealth import stealth
 
 clear = lambda: system("cls" if sys.platform == "win32" else "clear")
 
@@ -124,14 +127,61 @@ for _, id, episode, _ in episodes:
 	clear()
 	print(f"Downloading episode {episode}...")
 
+	clear()
+
 	def try_download():
 		try:
 			try:
-				source = sources["Direct-directhls"]
+				source = sources["Doodstream-embed"].replace("/e/", "/d/")
 
-				m3u8_To_MP4.multithread_download(source, mp4_file_dir=fp, mp4_file_name=fn)
+				async def download():
+					browser = await pyppeteer.launch()
+					page = await browser.newPage()
+					await stealth(page)
+
+					await page.goto(source)
+					await page.waitForSelector(".container .download-content > a")
+					href = await page.Jeval(".container .download-content > a", "e => e.href")
+
+					await page.goto(href)
+					await page.waitForSelector("a.btn.btn-primary")
+					download_link = re.search(r"window\.open\(\'(https.+)\', \'_self\'\)", await page.Jeval("a.btn.btn-primary", "e => e.getAttribute('onclick')"))[1]
+
+					headers = {
+						"Connection": "keep-alive",
+						"Upgrade-Insecure-Requests": "1",
+						"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3542.0 Safari/537.36",
+						"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+						"Referer": href,
+						"Accept-Language": "en-US,en;q=0.9"
+					}
+					
+					with requests.get(download_link, headers=headers, stream=True) as r:
+						clear()
+						r.raise_for_status()
+
+						chunk_size = 32768
+						total_size = int(r.headers["content-length"])
+						downloaded_size = 0
+						
+						with alive_bar(total_size, title=f"Downloading episode {episode}", ctrl_c=0, unit="B", scale="SI", precision=1) as progress:
+							with open(path.join(fp, fn), "wb") as f:
+								for chunk in r.iter_content(chunk_size=chunk_size):
+									f.write(chunk)
+
+									downloaded_size += chunk_size
+									progress(chunk_size)
+					await browser.close()
+
+				asyncio.get_event_loop().run_until_complete(download())
 			except Exception as e:
+				print(e)
+				input()
 				try:
+					source = sources["Direct-directhls"]
+
+					m3u8_To_MP4.multithread_download(source, mp4_file_dir=fp, mp4_file_name=fn)
+				except Exception as e:
 					source = sources["Mp4upload-embed"].replace("embed-", "")
 					mp4_id = re.search(r"mp4upload\.com\/(\S+)\.html", source)[1]
 
@@ -180,26 +230,6 @@ for _, id, episode, _ in episodes:
 
 									downloaded_size += chunk_size
 									progress(chunk_size)
-				except Exception as e:
-					clear()
-
-					source = "https:" + sources["VidCDN-embed"]
-					download_source = sources["Streamsb-embed"].replace("/e/", "/d/")
-
-					r = requests.get(source)
-
-					with open(path.join(fp, fn.replace(".mp4", ".html")), "wb") as f:
-						f.write(r.content)
-					with open(path.join(fp, fn.replace(".mp4", ".download.txt")), "w") as f:
-						f.write(download_source)
-
-					print(f"WARNING | BOTH STREAM SOURCES FAILED | YOU CAN MANUALLY DOWNLOAD EPISODE {episode} WITH THE LINK BELOW")
-					print(download_source)
-					print(f"Alternatively, you can stream the episode with the 'Episode {episode}.html' file created, or view the download link in 'Episode {episode}.download.txt'.")
-					print()
-					print("Press enter to continue.")
-
-					input()
 		except Exception as e:
 			print(e)
 			print()
