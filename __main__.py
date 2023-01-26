@@ -125,9 +125,7 @@ for _, id, episode, _ in episodes:
 	fn = f"Episode {episode}.mp4"
 
 	clear()
-	print(f"Downloading episode {episode}...")
-
-	clear()
+	print(f"Preparing to download episode {episode}...")
 
 	def try_download():
 		try:
@@ -173,7 +171,7 @@ for _, id, episode, _ in episodes:
 									progress(chunk_size)
 					await browser.close()
 
-				asyncio.get_event_loop().run_until_complete(download())
+				asyncio.run(download())
 			except Exception as e:
 				print(e)
 				input()
