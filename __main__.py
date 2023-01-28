@@ -133,8 +133,8 @@ for _, id, episode, _ in episodes:
 				source = sources["Doodstream-embed"].replace("/e/", "/d/")
 
 				async def download():
-					browser = await pyppeteer.launch(headless=False)
-					print("launcher")
+					browser = await pyppeteer.launch()
+					print("launched")
 					page = await browser.newPage()
 					print("page created")
 					await stealth(page)
