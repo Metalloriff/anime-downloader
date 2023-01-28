@@ -5,7 +5,6 @@ import re
 import shutil
 import sys
 from os import path, system
-from time import sleep
 
 import m3u8_To_MP4
 import pyppeteer
@@ -139,8 +138,6 @@ for _, id, episode, _ in episodes:
 					await stealth(page)
 
 					await page.goto(source)
-					sleep(5)
-					await page.screenshot({"path": "wtf.png"})
 					await page.waitForSelector(".container .download-content > a")
 					href = await page.Jeval(".container .download-content > a", "e => e.href")
 
