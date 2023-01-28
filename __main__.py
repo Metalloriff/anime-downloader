@@ -134,10 +134,14 @@ for _, id, episode, _ in episodes:
 
 				async def download():
 					browser = await pyppeteer.launch(headless=False)
+					print("launcher")
 					page = await browser.newPage()
+					print("page created")
 					await stealth(page)
+					print("stealth enabled")
 
 					await page.goto(source)
+					print("page loaded")
 					await page.waitForSelector(".container .download-content > a")
 					href = await page.Jeval(".container .download-content > a", "e => e.href")
 
