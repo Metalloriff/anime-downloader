@@ -73,7 +73,7 @@ def select_anime():
 	
 anime, id, cover, _ = select_anime()
 episodes = json.loads(requests.get(f"{api}/episodes.php?id={id}").content)[::-1]
-fp = path.join(os.getcwd(), anime)
+fp = path.join(os.getcwd(), re.sub(r"[^\w\d-]", "", anime))
 
 os.makedirs(fp, exist_ok=True)
 
