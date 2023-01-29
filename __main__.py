@@ -130,55 +130,51 @@ for _, id, episode, _ in episodes:
 	def try_download():
 		try:
 			try:
-				source = sources["Doodstream-embed"].replace("/e/", "/d/")
+				source = sources["Direct-directhls"]
 
-				async def download():
-					browser = await pyppeteer.launch(args=["--disable-gpu", "--no-sandbox"])
-					page = await browser.newPage()
-					await stealth(page)
-
-					await page.goto(source)
-					await page.waitForSelector(".container .download-content > a")
-					href = await page.Jeval(".container .download-content > a", "e => e.href")
-
-					await page.goto(href)
-					await page.waitForSelector("a.btn.btn-primary")
-					download_link = re.search(r"window\.open\(\'(https.+)\', \'_self\'\)", await page.Jeval("a.btn.btn-primary", "e => e.getAttribute('onclick')"))[1]
-
-					headers = {
-						"Connection": "keep-alive",
-						"Upgrade-Insecure-Requests": "1",
-						"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3542.0 Safari/537.36",
-						"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-						"Referer": href,
-						"Accept-Language": "en-US,en;q=0.9"
-					}
-					
-					with requests.get(download_link, headers=headers, stream=True) as r:
-						clear()
-						r.raise_for_status()
-
-						chunk_size = 32768
-						total_size = int(r.headers["content-length"])
-						downloaded_size = 0
-						
-						with alive_bar(total_size, title=f"Downloading episode {episode}", ctrl_c=0, unit="B", scale="SI", precision=1) as progress:
-							with open(path.join(fp, fn), "wb") as f:
-								for chunk in r.iter_content(chunk_size=chunk_size):
-									f.write(chunk)
-
-									downloaded_size += chunk_size
-									progress(chunk_size)
-					await browser.close()
-
-				asyncio.run(download())
+				m3u8_To_MP4.multithread_download(source, mp4_file_dir=fp, mp4_file_name=fn)
 			except Exception as e:
-				print(e)
-				input()
 				try:
-					source = sources["Direct-directhls"]
+					source = sources["Doodstream-embed"].replace("/e/", "/d/")
 
-					m3u8_To_MP4.multithread_download(source, mp4_file_dir=fp, mp4_file_name=fn)
+					async def download():
+						browser = await pyppeteer.launch(args=["--disable-gpu", "--no-sandbox"])
+						page = await browser.newPage()
+						await stealth(page)
+
+						await page.goto(source)
+						await page.waitForSelector(".container .download-content > a")
+						href = await page.Jeval(".container .download-content > a", "e => e.href")
+
+						await page.goto(href)
+						await page.waitForSelector("a.btn.btn-primary")
+						download_link = re.search(r"window\.open\(\'(https.+)\', \'_self\'\)", await page.Jeval("a.btn.btn-primary", "e => e.getAttribute('onclick')"))[1]
+
+						headers = {
+							"Connection": "keep-alive",
+							"Upgrade-Insecure-Requests": "1",
+							"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3542.0 Safari/537.36",
+							"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+							"Referer": href,
+							"Accept-Language": "en-US,en;q=0.9"
+						}
+						
+						with requests.get(download_link, headers=headers, stream=True) as r:
+							clear()
+							r.raise_for_status()
+
+							chunk_size = 32768
+							total_size = int(r.headers["content-length"])
+							downloaded_size = 0
+							
+							with alive_bar(total_size, title=f"Downloading episode {episode}", ctrl_c=0, unit="B", scale="SI", precision=1) as progress:
+								with open(path.join(fp, fn), "wb") as f:
+									for chunk in r.iter_content(chunk_size=chunk_size):
+										f.write(chunk)
+
+										downloaded_size += chunk_size
+										progress(chunk_size)
+						await browser.close()
 				except Exception as e:
 					source = sources["Mp4upload-embed"].replace("embed-", "")
 					mp4_id = re.search(r"mp4upload\.com\/(\S+)\.html", source)[1]
@@ -228,6 +224,8 @@ for _, id, episode, _ in episodes:
 
 									downloaded_size += chunk_size
 									progress(chunk_size)
+
+				asyncio.run(download())
 		except Exception as e:
 			print(e)
 			print()
