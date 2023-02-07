@@ -91,8 +91,8 @@ clear()
 print("Downloading cover...")
 download_cover()
 
-first_episode = episodes[0][2]
-last_episode = episodes[-1][2]
+first_episode = int(episodes[0][2])
+last_episode = int(episodes[-1][2])
 
 clear()
 def select_episodes():
@@ -111,11 +111,17 @@ def select_episodes():
 		if range[0] < first_episode or range[0] > last_episode or (len(range) > 1 and (range[1] < first_episode or range[1] > last_episode or range[1] < range[0])):
 			raise
 
-		start = episodes.index(lambda ep: ep[2] == range[0])
-		end = episodes.index(lambda ep: ep[2] == range[1]) if len(range[1]) > 0 else None
+		def find_index(episode):
+			for i, ep in enumerate(episodes):
+				if int(ep[2]) == episode:
+					return i
+			return None
 
-		return episodes[start] if end is None else episodes[start:end]
-	except:
+		start = find_index(range[0])
+		end = find_index(range[1]) if len(range) > 1 else None
+
+		return [episodes[start]] if end is None else episodes[start:end]
+	except Exception as e:
 		clear()
 		print("Invalid response, please enter a single episode number or a range of episodes within the episode count.")
 		print()
