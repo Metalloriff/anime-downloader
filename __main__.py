@@ -91,12 +91,15 @@ clear()
 print("Downloading cover...")
 download_cover()
 
+first_episode = episodes[0][2]
+last_episode = episodes[-1][2]
+
 clear()
 def select_episodes():
 	e = argument("--episode") or argument("--episodes")
 
 	if e is None:
-		print(f"Which episodes would you like to download? (1-{len(episodes)})")
+		print(f"Which episodes would you like to download? ({first_episode}-{last_episode})")
 		print(f"Examples: 1 OR 3-5 OR 1-12 OR press enter to download all.")
 
 	try:
@@ -105,17 +108,20 @@ def select_episodes():
 		if range[0] == "all":
 			return episodes
 
-		if range[0] < 1 or range[0] > len(episodes) or (len(range) > 1 and (range[1] < 1 or range[1] > len(episodes) or range[1] < range[0])):
+		if range[0] < first_episode or range[0] > last_episode or (len(range) > 1 and (range[1] < first_episode or range[1] > last_episode or range[1] < range[0])):
 			raise
 
-		return [episodes[range[0] - 1]] if len(range) == 1 else episodes[range[0] - 1:range[1]]
+		start = episodes.index(lambda ep: ep[2] == range[0])
+		end = episodes.index(lambda ep: ep[2] == range[1]) if len(range[1]) > 0 else None
+
+		return episodes[start] if end is None else episodes[start:end]
 	except:
 		clear()
 		print("Invalid response, please enter a single episode number or a range of episodes within the episode count.")
 		print()
 
 		return select_episodes()
-	
+
 clear()
 episodes = select_episodes()
 
