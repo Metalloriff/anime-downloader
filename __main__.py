@@ -73,9 +73,29 @@ def select_anime():
 	
 anime, id, cover, _ = select_anime()
 episodes = json.loads(requests.get(f"{api}/episodes.php?id={id}").content)[::-1]
-fp = path.join(os.getcwd(), re.sub(r"[^\w\d-]", "", anime))
 
-os.makedirs(fp, exist_ok=True)
+clear()
+
+defaultDir = re.sub(r"[^\s\w\d-]", "", anime)
+fp = path.join(os.getcwd(), defaultDir)
+
+def get_path():
+	global fp
+
+	try:
+		print("Please enter the path you'd like to download to, or press enter to save to default directory...")
+		print("Default directory: " + fp)
+		print()
+
+		p = input(os.getcwd() + ("/" if "/" in os.getcwd() else "\\"))
+		p = path.join(os.getcwd(), p)
+
+		os.makedirs(p, exist_ok=True)
+		fp = p
+	except:
+		print("This path is not valid! Please try a different one.")
+		return get_path()
+fp = get_path()
 
 def download_cover():
 	try:
