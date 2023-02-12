@@ -80,8 +80,6 @@ defaultDir = re.sub(r"[^\s\w\d-]", "", anime)
 fp = path.join(os.getcwd(), defaultDir)
 
 def get_path():
-	global fp
-
 	try:
 		print("Please enter the path you'd like to download to, or press enter to save to default directory...")
 		print("Default directory: " + fp)
@@ -91,7 +89,7 @@ def get_path():
 		p = path.join(os.getcwd(), p)
 
 		os.makedirs(p, exist_ok=True)
-		fp = p
+		return p
 	except:
 		print("This path is not valid! Please try a different one.")
 		return get_path()
