@@ -165,7 +165,6 @@ for _, id, episode, _ in episodes:
 		try:
 			try:
 				source = sources["VidCDN-embed"]
-				print(source)
 				resolutions = ["1080", "720", "480", "360"]
 				re_split = re.search(r"(.+)\/(.+)\.m3u8", source)
 				uri_base = re_split[1]
