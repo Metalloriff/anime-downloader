@@ -7,7 +7,6 @@ import sys
 from os import path, system
 
 import m3u8_To_MP4
-import pyppeteer
 import requests
 from alive_progress import alive_bar
 from pyppeteer_stealth import stealth
@@ -86,7 +85,11 @@ def get_path():
 		print()
 
 		p = input(os.getcwd() + ("/" if "/" in os.getcwd() else "\\"))
-		p = path.join(os.getcwd(), p)
+
+		if len(p.strip()) > 0:
+			p = path.join(os.getcwd(), p)
+		else:
+			p = fp
 
 		os.makedirs(p, exist_ok=True)
 		return p
@@ -119,6 +122,7 @@ def select_episodes():
 	if e is None:
 		print(f"Which episodes would you like to download? ({first_episode}-{last_episode})")
 		print(f"Examples: 1 OR 3-5 OR 1-12 OR press enter to download all.")
+		print(f"Episode list: " + ", ".join(map(lambda x: str(x[2]), episodes)))
 
 	try:
 		range = list(map(lambda n: int(n.strip()) if len(n) > 0 else "all", e or input().split("-")))
@@ -160,47 +164,22 @@ for _, id, episode, _ in episodes:
 	def try_download():
 		try:
 			try:
-				source = sources["Doodstream-embed"].replace("/e/", "/d/")
+				source = sources["VidCDN-embed"]
+				print(source)
+				resolutions = ["1080", "720", "480", "360"]
+				re_split = re.search(r"(.+)\/(.+)\.m3u8", source)
+				uri_base = re_split[1]
+				m3u8_path = re_split[2]
 
 				async def download():
-					browser = await pyppeteer.launch(args=["--disable-gpu", "--no-sandbox"])
-					page = await browser.newPage()
-					await stealth(page)
-
-					await page.goto(source)
-					await page.waitForSelector(".container .download-content > a")
-					href = await page.Jeval(".container .download-content > a", "e => e.href")
-
-					await page.goto(href)
-					await page.waitForSelector("a.btn.btn-primary")
-					download_link = re.search(r"window\.open\(\'(https.+)\', \'_self\'\)", await page.Jeval("a.btn.btn-primary", "e => e.getAttribute('onclick')"))[1]
-
-					headers = {
-						"Connection": "keep-alive",
-						"Upgrade-Insecure-Requests": "1",
-						"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3542.0 Safari/537.36",
-						"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-						"Referer": href,
-						"Accept-Language": "en-US,en;q=0.9"
-					}
-					
-					with requests.get(download_link, headers=headers, stream=True) as r:
-						clear()
-						r.raise_for_status()
-
-						chunk_size = 32768
-						total_size = int(r.headers["content-length"])
-						downloaded_size = 0
-						
-						with alive_bar(total_size, title=f"Downloading episode {episode}", ctrl_c=0, unit="B", scale="SI", precision=1) as progress:
-							with open(path.join(fp, fn), "wb") as f:
-								for chunk in r.iter_content(chunk_size=chunk_size):
-									f.write(chunk)
-
-									downloaded_size += chunk_size
-									progress(chunk_size)
-					await browser.close()
-
+					for resolution in resolutions:
+						try:
+							m3u8_uri = ".".join(["/".join([uri_base, m3u8_path]), resolution, "m3u8"])
+							m3u8_To_MP4.multithread_download(m3u8_uri, mp4_file_dir=fp, mp4_file_name=fn)
+							
+							return
+						except Exception as e:
+							print(e)
 				asyncio.run(download())
 			except Exception as e:
 				try:
