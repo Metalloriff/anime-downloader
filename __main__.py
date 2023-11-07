@@ -3,13 +3,12 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from os import path, system
 
-import m3u8_To_MP4
 import requests
 from alive_progress import alive_bar
-from pyppeteer_stealth import stealth
 
 clear = lambda: system("cls" if sys.platform == "win32" else "clear")
 
@@ -174,9 +173,12 @@ for _, id, episode, _ in episodes:
 					for resolution in resolutions:
 						try:
 							m3u8_uri = ".".join(["/".join([uri_base, m3u8_path]), resolution, "m3u8"])
-							m3u8_To_MP4.multithread_download(m3u8_uri, mp4_file_dir=fp, mp4_file_name=fn)
+
+							cmd = f'ffmpeg -i "{m3u8_uri}" -safe 0 -y -async 100 -c copy "{os.path.join(fp, fn)}"'
+							process = subprocess.Popen(cmd, shell=True)
 							
-							return
+							if process.wait() == 0:
+								return
 						except Exception as e:
 							print(e)
 				asyncio.run(download())
