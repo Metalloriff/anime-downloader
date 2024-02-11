@@ -5,10 +5,16 @@ import re
 import shutil
 import subprocess
 import sys
+import platform
 from os import path, system
+from html import unescape
+
+if platform.system() == "Linux":
+	import readline
 
 import requests
 from alive_progress import alive_bar
+from pick import pick
 
 clear = lambda: system("cls" if sys.platform == "win32" else "clear")
 
@@ -20,22 +26,24 @@ def argument(arg, default = None):
 api = "https://animension.to/public-api"
 
 clear()
-if not "--name" in sys.argv:
-	print("Search anime:")
-name = argument("--name") or input()
+name = argument("--name") or input("Search anime: ")
 
 clear()
 dub = "--dub" in sys.argv
 sub = "--sub" in sys.argv
 
-if not dub and not sub:
-	print("Sub or Dub? (Press enter to skip filtering)")
-	r = input()
+def get_sub_dub():
+	global sub
+	global dub
 
-	if "sub" in r.lower():
-		sub = True
-	elif "dub" in r.lower():
-		dub = True
+	if not dub and not sub:
+		try:
+			_, index = pick(["Subbed", "Dubbed"], "Select audio/subtitle type:", indicator=">>")
+			sub = index == 0
+			dub = index == 1
+		except KeyboardInterrupt:
+			exit()
+get_sub_dub()
 
 filtering = ""
 if sub:
@@ -43,31 +51,39 @@ if sub:
 elif dub:
 	filtering = "&dub=1"
 
+def fetch_episodes():
+	return json.loads(requests.get(f"{api}/search.php?search_text={name}&page=1&sort=az{filtering}").content)
+
 clear()
-results = json.loads(requests.get(f"{api}/search.php?search_text={name}&page=1&sort=az{filtering}").content)
+results = fetch_episodes()
 
 def select_anime():
+	global name
+	global results
+
 	try:
-		idx = 1
-		for name, id, cover_uri, is_sub in results:
-			print(f"{idx}) {name}")
+		if len(results) == 0:
+			_, index = pick(["Go back", "Exit"], "No results found.", indicator=">>")
 
-			idx += 1
+			if index == 0:
+				clear()
+				name = input("Search anime: ")
+				results = fetch_episodes()
+				return select_anime()
+			if index == 1:
+				exit()
+
+		_, index = pick(["Go back"] + [unescape(x[0]) for x in results], "Select anime:", indicator=">>")
+
+		if index == 0:
+			clear()
+			name = input("Search anime: ")
+			results = fetch_episodes()
+			return select_anime()
 		
-		print()
-		print("Select anime:")
-		idx = int(input())
-
-		if idx < 1 or idx > len(results):
-			raise
-		return results[idx - 1]
-	except:
-		clear()
-
-		print("Invalid response, please enter a selection number from below.")
-		print()
-
-		return select_anime()
+		return results[index - 1]
+	except KeyboardInterrupt:
+		exit()
 	
 anime, id, cover, _ = select_anime()
 episodes = json.loads(requests.get(f"{api}/episodes.php?id={id}").content)[::-1]
@@ -83,7 +99,20 @@ def get_path():
 		print("Default directory: " + fp)
 		print()
 
-		p = input(os.getcwd() + ("/" if "/" in os.getcwd() else "\\"))
+		p = ""
+
+		# Thanks, Linux, for being a usable operating system.
+		if platform.system() == "Linux":
+			def hook():
+				readline.insert_text(fp)
+				readline.redisplay()
+			
+			readline.set_pre_input_hook(hook)
+			p = input("Target directory: ")
+			readline.set_pre_input_hook()
+		# Ew.
+		else:
+			p = input("Target directory: " + os.getcwd() + ("/" if "/" in os.getcwd() else "\\"))
 
 		if len(p.strip()) > 0:
 			p = path.join(os.getcwd(), p)
@@ -92,6 +121,8 @@ def get_path():
 
 		os.makedirs(p, exist_ok=True)
 		return p
+	except KeyboardInterrupt:
+		exit()
 	except:
 		print("This path is not valid! Please try a different one.")
 		return get_path()
@@ -103,6 +134,8 @@ def download_cover():
 		
 		with open(path.join(fp, "cover.jpg"), "wb") as f:
 			shutil.copyfileobj(r.raw, f)
+	except KeyboardInterrupt:
+		exit()
 	except Exception as e:
 		print("FAILED TO DOWNLOAD COVER")
 		print(e)
@@ -118,34 +151,41 @@ clear()
 def select_episodes():
 	e = argument("--episode") or argument("--episodes")
 
-	if e is None:
-		print(f"Which episodes would you like to download? ({first_episode}-{last_episode})")
-		print(f"Examples: 1 OR 3-5 OR 1-12 OR press enter to download all.")
-		print(f"Episode list: " + ", ".join(map(lambda x: str(x[2]), episodes)))
-
 	try:
-		range = list(map(lambda n: int(n.strip()) if len(n) > 0 else "all", e or input().split("-")))
+		if e is None:
+			options = ["Episode " + str(x[2]) for x in episodes]
+			selection = pick([f"All {str(len(episodes))} episodes"] + options, " -- PRESS SPACE TO SELECT, ENTER TO CONFIRM -- \nPlease select which episodes you would like to download:", indicator=">>", multiselect=True)
 
-		if range[0] == "all":
-			return episodes
+			if selection[0][0].startswith("All") or len(selection) == 0:
+				return episodes
+			
+			return [episodes[x[1] - 1] for x in selection]
+		else: # I have no idea what any of this is, I'm too scared to remove it. Good luck.
+			range = list(map(lambda n: int(n.strip()) if len(n) > 0 else "all", e or input().split("-")))
 
-		if range[0] < first_episode or range[0] > last_episode or (len(range) > 1 and (range[1] < first_episode or range[1] > last_episode or range[1] < range[0])):
-			raise
+			if range[0] == "all":
+				return episodes
 
-		def find_index(episode):
-			for i, ep in enumerate(episodes):
-				if int(ep[2]) == episode:
-					return i
-			return None
+			if range[0] < first_episode or range[0] > last_episode or (len(range) > 1 and (range[1] < first_episode or range[1] > last_episode or range[1] < range[0])):
+				raise
 
-		start = find_index(range[0])
-		end = find_index(range[1]) if len(range) > 1 else None
+			def find_index(episode):
+				for i, ep in enumerate(episodes):
+					if int(ep[2]) == episode:
+						return i
+				return None
 
-		return [episodes[start]] if end is None else episodes[start:end]
+			start = find_index(range[0])
+			end = find_index(range[1]) if len(range) > 1 else None
+
+			return [episodes[start]] if end is None else episodes[start:end]
+	except KeyboardInterrupt:
+		exit()
 	except Exception as e:
 		clear()
+		print(e)
 		print("Invalid response, please enter a single episode number or a range of episodes within the episode count.")
-		print()
+		input("Press enter to continue...")
 
 		return select_episodes()
 
@@ -236,6 +276,8 @@ for _, id, episode, _ in episodes:
 
 									downloaded_size += chunk_size
 									progress(chunk_size)
+		except KeyboardInterrupt:
+			exit()
 		except Exception as e:
 			print(e)
 			print()
