@@ -73,7 +73,7 @@ def select_anime():
 			if index == 1:
 				exit()
 
-		_, index = pick(["Go back"] + [unescape(x[0]) for x in results], "Select anime:", indicator=">>")
+		_, index = pick(["Go back"] + [unescape(x["0"] if isinstance(x, dict) else x[0]) for x in results], "Select anime:", indicator=">>")
 
 		if index == 0:
 			clear()
