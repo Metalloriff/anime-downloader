@@ -84,8 +84,23 @@ def select_anime():
 		return results[index - 1]
 	except KeyboardInterrupt:
 		exit()
-	
-anime, id, cover, _ = select_anime()
+
+anime = None
+id = None
+cover = None
+data = select_anime()
+
+# I would make fun of whoever thought this API change was OK,
+# but that would be ableism.
+if isinstance(data, dict):
+	anime = data["0"]
+	id = data["1"]
+	cover = data["2"]
+else:
+	anime = data[0]
+	id = data[1]
+	cover = data[2]
+
 episodes = json.loads(requests.get(f"{api}/episodes.php?id={id}").content)[::-1]
 
 clear()
